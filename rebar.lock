@@ -1,3 +1,4 @@
+{"1.1.0",
 [{<<"bucs">>,{pkg,<<"bucs">>,<<"1.0.6">>},0},
  {<<"doteki">>,{pkg,<<"doteki">>,<<"1.0.5">>},0},
  {<<"goldrush">>,{pkg,<<"goldrush">>,<<"0.1.9">>},1},
@@ -9,4 +10,11 @@
  {<<"texas_adapter">>,
   {git,"https://github.com/emedia-project/texas_adapter.git",
        {ref,"38e16fc728a8b3db666c8feab3eca206495ba22f"}},
-  0}].
+  0}]}.
+[
+{pkg_hash,[
+ {<<"bucs">>, <<"B0467388B5ADAABB4D8726595B7B754A961BFE80F0CCAC88F58E1AFEA32BE6D0">>},
+ {<<"doteki">>, <<"1E719DBE540F84EA87C6DC92BE4B6F706A42B08067AF519DE13B6EFC27243A49">>},
+ {<<"goldrush">>, <<"F06E5D5F1277DA5C413E84D5A2924174182FB108DABB39D5EC548B27424CD106">>},
+ {<<"lager">>, <<"A6DEB74DAE7927F46BD13255268308EF03EB206EC784A94EAF7C1C0F3B811615">>}]}
+].

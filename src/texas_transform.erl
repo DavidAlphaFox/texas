@@ -30,14 +30,15 @@ build(PT_AST) ->
 update_fields(Fields) ->
   lists:map(fun({Field, Options}) ->
         case lists:keyfind(belongs_to, 1, Options) of
-          false ->
-            {Field, Options};
+          false -> {Field, Options};
           {belongs_to, _} ->
-            {list_to_atom(atom_to_list(Field) ++ "_id"),
-             merge_keylists(1, Options, [{type, id}])}
+            {
+             list_to_atom(atom_to_list(Field) ++ "_id"),
+             merge_keylists(1, Options, [{type, id}])
+            } %% 默认给belongs_to的记录后面添加一个id
         end
     end, Fields).
-
+%% 自动添加created_at和updetad_at字段
 add_timestamps(PT_AST) ->
   case pt_helpers:directive(PT_AST, timestamps) of
     [true] -> [
@@ -49,28 +50,32 @@ add_timestamps(PT_AST) ->
   end.
 
 build_record(PT_AST, TableName, Fields) ->
-  FieldsDef = lists:foldl(fun({Name, Options}, Acc) ->
+  FieldsDef =
+    lists:foldl(
+      fun({Name, Options}, Acc) ->
           Acc ++ case lists:keyfind(type, 1, Options) of
-            {type, Type} -> [{Name, Type}];
-            _ -> case lists:keyfind(habtm, 1, Options) of
-                {habtm, Ref} -> [{list_to_atom(atom_to_list(Ref) ++ "_habtm"), term}];
-                _ -> []
-              end
-          end
+                   {type, Type} -> [{Name, Type}];
+                   _ ->
+                     case lists:keyfind(habtm, 1, Options) of
+                       {habtm, Ref} -> [{list_to_atom(atom_to_list(Ref) ++ "_habtm"), term}];
+                       _ -> []
+                     end
+                 end
       end, [], Fields) ++ [{'__texas_conn', term}],
   pt_helpers:add_record(PT_AST, TableName, FieldsDef).
 
 build_common_functions(PT_AST, Fields) ->
-  lists:foldl(fun({Option, Default}, PT_AST1) ->
+  lists:foldl(
+    fun({Option, Default}, PT_AST1) ->
         build_common_function(PT_AST1, Fields, Option, Default)
     end, PT_AST, [
-      {autoincrement, {ok, false}},
-      {not_null, {ok, false}},
-      {unique, {ok, false}},
-      {default, {none, null}},
-      {len, {none, null}},
-      {belongs_to, {none, null}}
-      ]).
+                  {autoincrement, {ok, false}},
+                  {not_null, {ok, false}},
+                  {unique, {ok, false}},
+                  {default, {none, null}},
+                  {len, {none, null}},
+                  {belongs_to, {none, null}}
+                 ]).
 
 build_type_functions(PT_AST, Fields) ->
   Clauses = lists:foldl(fun({FieldName, Options}, Clauses) ->
@@ -84,13 +89,15 @@ build_type_functions(PT_AST, Fields) ->
         end
     end, [], Fields),
   pt_helpers:add_function(PT_AST, export, '-type', Clauses).
-
+%% 得到所有的fields，有类型的才是fields
 build_fields_function(PT_AST, Fields) ->
-  FieldsList = lists:foldl(fun({Name, Options}, Acc) ->
+  FieldsList =
+    lists:foldl(
+      fun({Name, Options}, Acc) ->
           Acc ++ case lists:keyfind(type, 1, Options) of
-            {type, _} -> [Name];
-            _ -> []
-          end
+                   {type, _} -> [Name];
+                   _ -> []
+                 end
       end, [], Fields),
   Clause = pt_helpers:build_clause([], pt_helpers:build_value(FieldsList)),
   pt_helpers:add_function(PT_AST, export, '-fields', Clause).
@@ -138,17 +145,23 @@ build_get_functions(PT_AST, TableName, Fields) ->
     end, PT_AST, Fields).
 
 build_set_functions(PT_AST, TableName, Fields) ->
-  lists:foldl(fun({FieldName, Options}, PT_AST1) ->
+  lists:foldl(
+    fun({FieldName, Options}, PT_AST1) ->
+        %% 当一个属性有类型
         case lists:keyfind(type, 1, Options) of
           {type, _} ->
+            %% 给该属性添加一个设置值的函数
             V = pt_helpers:build_var('V'),
             Type = pt_helpers:build_var('Type'),
             TypeCall = pt_helpers:build_call('-type', [pt_helpers:build_atom(FieldName)]),
             TypeMatch = pt_helpers:build_match(Type, TypeCall),
+            %% 类型转换
             ToCall = pt_helpers:build_call(texas_type, to, [Type, V]),
             V1 = pt_helpers:build_var('V1'),
             ToV1 = pt_helpers:build_match(V1, ToCall),
+            %% 给对应的record属性赋值
             Field = pt_helpers:build_record_field(FieldName, V1),
+            %% 更新record中对应的属性
             Record = pt_helpers:build_record('R', TableName, [Field]),
             R = pt_helpers:build_var('R'),
             Clause = [
@@ -158,9 +171,11 @@ build_set_functions(PT_AST, TableName, Fields) ->
                   ),
                 pt_helpers:build_clause(
                   [pt_helpers:build_atom(null), R],
-                  pt_helpers:build_record('R', TableName, [
-                      pt_helpers:build_record_field(FieldName, pt_helpers:build_atom(null))])
-                  ),
+                  pt_helpers:build_record('R', TableName,
+                                          [
+                                           pt_helpers:build_record_field(FieldName, pt_helpers:build_atom(null))
+                                          ])
+                 ),
                 pt_helpers:build_clause(
                   [V, R],
                   [TypeMatch, ToV1, Record]
@@ -456,15 +471,16 @@ build_common_function(PT_AST, Fields, Option, Default) ->
   pt_helpers:add_function(PT_AST, export, list_to_atom("-" ++ atom_to_list(Option)), Clauses).
 
 build_common_clauses(Fields, Option, Default) ->
-  lists:foldl(fun({FieldName, Options}, Clauses) ->
+  lists:foldl(
+    fun({FieldName, Options}, Clauses) ->
         Value = case lists:keyfind(Option, 1, Options) of
-          {Option, A} -> {ok, A};
-          _ -> Default
-        end,
+                  {Option, A} -> {ok, A};
+                  _ -> Default
+                end,
         Clauses ++ [pt_helpers:build_clause(
-            pt_helpers:build_atom(FieldName),
-            pt_helpers:build_tuple(Value)
-          )]
+                      pt_helpers:build_atom(FieldName),
+                      pt_helpers:build_tuple(Value)
+                     )]
     end, [], Fields).
 
 %% @doc
